@@ -139,10 +139,10 @@
       "items": { "$ref": "#/$defs/Agent" },
       "description": "One or more agent definitions."
     },
-    "humanGates": {
+    "gates": {
       "type": "array",
       "items": { "$ref": "#/$defs/HumanGate" },
-      "description": "Human review checkpoints between pipeline steps."
+      "description": "Review checkpoints between pipeline steps. All gate types in v1 are human-in-the-loop. Automated gate types are planned for v2."
     },
     "schedule": {
       "$ref": "#/$defs/TeamSchedule",
