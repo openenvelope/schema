@@ -139,10 +139,14 @@
       "items": { "$ref": "#/$defs/Agent" },
       "description": "One or more agent definitions."
     },
-    "gates": {
+    "humanGates": {
       "type": "array",
       "items": { "$ref": "#/$defs/HumanGate" },
       "description": "Human review checkpoints between pipeline steps."
+    },
+    "schedule": {
+      "$ref": "#/$defs/TeamSchedule",
+      "description": "When and how the team is triggered. Omit for on-demand teams."
     },
     "pipeline": {
       "type": "array",
@@ -152,6 +156,28 @@
   },
 
   "$defs": {
+    "TeamSchedule": {
+      "type": "object",
+      "required": ["type"],
+      "description": "Defines when the team runs. Omit for on-demand teams.",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["manual", "cron"],
+          "description": "'manual' — triggered by API or UI only. 'cron' — scheduled via cron expression."
+        },
+        "cron": {
+          "type": "string",
+          "description": "Standard 5-field cron expression (e.g. '0 9 * * 1' for every Monday at 9am UTC). Required when type is 'cron'."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable description of the schedule. E.g. 'Every Monday at 9am UTC'."
+        }
+      }
+    },
+
     "Pricing": {
       "type": "object",
       "required": ["model"],
@@ -247,7 +273,7 @@
       "properties": {
         "key": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+$",
+          "pattern": "^[a-z0-9_-]+$",
           "description": "Unique within the team. Used in reportsToKey references."
         },
         "name": {
@@ -271,6 +297,7 @@
           "enum": [
             "http",
             "claude_local",
+            "openai_local",
             "codex_local",
             "gemini_local",
             "opencode_local",
@@ -280,7 +307,7 @@
         },
         "reportsToKey": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+$",
+          "pattern": "^[a-z0-9_-]+$",
           "description": "Key of the parent agent. Omit for top-level (root) agents."
         },
         "capabilities": {
@@ -525,12 +552,12 @@
       "properties": {
         "key": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+$",
+          "pattern": "^[a-z0-9_-]+$",
           "description": "Unique step identifier within the pipeline."
         },
         "agentKey": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+$",
+          "pattern": "^[a-z0-9_-]+$",
           "description": "Key of the agent that executes this step."
         },
         "label": {
