@@ -1,0 +1,548 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schema.openenvelope.org/team/v1.json",
+  "title": "Envelope Team Definition",
+  "description": "Schema for an Envelope AI team definition. Reference as $schema in your .envelope.json file.",
+  "type": "object",
+  "required": [
+    "$schema",
+    "name",
+    "slug",
+    "version",
+    "description",
+    "visibility",
+    "agents"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://schema.openenvelope.org/team/v1.json",
+      "description": "Must be 'https://schema.openenvelope.org/team/v1.json'"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Human-readable display name shown in the registry."
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "URL-safe identifier, unique within the registry. Lowercase letters, numbers, and hyphens only."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "Semver string (MAJOR.MINOR.PATCH). Versions are immutable once published."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Short description shown in the registry."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "customer-support",
+        "sales",
+        "marketing",
+        "finance",
+        "hr",
+        "devops",
+        "engineering",
+        "data-analysis",
+        "legal",
+        "research",
+        "content",
+        "product",
+        "security",
+        "operations",
+        "other"
+      ],
+      "description": "Registry category. Teams submitted without a valid category are published under 'other'."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 50 },
+      "maxItems": 20,
+      "description": "Free-form tags for search. Not yet indexed for filtering — planned for registry v2."
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["public", "team", "private"],
+      "description": "'public' — listed in registry. 'team' — org members only. 'private' — publishing API key only."
+    },
+    "pricing": {
+      "$ref": "#/$defs/Pricing"
+    },
+    "forkable": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether other builders may fork this team. Defaults to true for public teams."
+    },
+    "forkedFrom": {
+      "$ref": "#/$defs/ForkedFrom"
+    },
+    "timeout": {
+      "$ref": "#/$defs/TeamTimeout"
+    },
+    "readme": {
+      "type": "string",
+      "maxLength": 10000,
+      "description": "Long-form Markdown documentation shown on the team's registry page."
+    },
+    "icon": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL of a square PNG or SVG icon (min 256x256px). Must be publicly accessible."
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/IOField" },
+      "description": "Named input fields the team accepts. Accepted by the registry; schema enforcement planned for v2."
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/IOField" },
+      "description": "Named output fields the team returns. Accepted by the registry; output validation planned for v2."
+    },
+    "requiredSecrets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$",
+        "description": "Uppercase with underscores. E.g. ZENDESK_API_KEY."
+      },
+      "description": "Secret names the deployer must supply at install time. Values are never in the schema."
+    },
+    "requiredVariables": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$",
+        "description": "Uppercase with underscores. E.g. SUPPORT_EMAIL."
+      },
+      "description": "Non-secret variable names the deployer must supply at install time."
+    },
+    "changelog": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Human-readable description of what changed in this version. Best practice: include on every publish."
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Agent" },
+      "description": "One or more agent definitions."
+    },
+    "gates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/HumanGate" },
+      "description": "Human review checkpoints between pipeline steps."
+    },
+    "pipeline": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/PipelineStep" },
+      "description": "Ordered sequence of pipeline steps. When present, the runtime executes steps in order rather than dispatching all agents concurrently."
+    }
+  },
+
+  "$defs": {
+    "Pricing": {
+      "type": "object",
+      "required": ["model"],
+      "description": "Omit entirely for free teams. When present, model is required.",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": ["free", "per_run", "per_k_tokens", "subscription"],
+          "description": "'subscription' is planned — not yet available in v1."
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price in the specified currency. Required when model is 'per_run' or 'per_k_tokens'."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "usd",
+          "description": "ISO 4217 currency code. Defaults to 'usd'."
+        },
+        "interval": {
+          "type": "string",
+          "enum": ["month", "year"],
+          "description": "Required when model is 'subscription'. Defaults to 'month'."
+        },
+        "trialDays": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Free trial length in days. Only applicable when model is 'subscription'."
+        }
+      }
+    },
+
+    "ForkedFrom": {
+      "type": "object",
+      "required": ["ownerSlug", "teamSlug", "version"],
+      "description": "Attribution when this team was derived from another.",
+      "properties": {
+        "ownerSlug": { "type": "string" },
+        "teamSlug": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "TeamTimeout": {
+      "type": "object",
+      "description": "Default timeout configuration for all agents in the team. Per-agent modelConfig.timeoutMs overrides this.",
+      "properties": {
+        "runMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 30000,
+          "description": "Maximum wall-clock time in ms for the entire run."
+        },
+        "agentMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 30000,
+          "description": "Maximum time in ms for a single agent invocation."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "IOField": {
+      "type": "object",
+      "description": "An input or output field definition.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array"]
+        },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "enum": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Restricts value to one of these options."
+        },
+        "default": {
+          "description": "Default value when the field is not supplied."
+        }
+      }
+    },
+
+    "Agent": {
+      "type": "object",
+      "required": ["key", "name", "title", "role"],
+      "description": "An agent within the team.",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique within the team. Used in reportsToKey references."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Job title shown in the team diagram. E.g. 'Head of Support'."
+        },
+        "role": {
+          "type": "string",
+          "description": "Free-form role description. Suggested values: 'manager', 'specialist', 'analyst'. Custom values are valid and passed through unchanged."
+        },
+        "adapterType": {
+          "type": "string",
+          "enum": [
+            "http",
+            "claude_local",
+            "codex_local",
+            "gemini_local",
+            "opencode_local",
+            "cursor_local"
+          ],
+          "description": "Runtime adapter. Runtimes must support 'http'. Local adapters are optional."
+        },
+        "reportsToKey": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Key of the parent agent. Omit for top-level (root) agents."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Free-form capability labels. E.g. ['triage', 'escalation']."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "System prompt. May reference secrets as {{SECRET_NAME}} and variables as {{VARIABLE_NAME}}."
+        },
+        "model": {
+          "type": "string",
+          "description": "LLM in 'provider:model' format. E.g. 'anthropic:claude-opus-4-5'. Use this unless you need temperature or maxTokens."
+        },
+        "modelConfig": {
+          "$ref": "#/$defs/ModelConfig"
+        },
+        "allowedHosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Simple hostname allowlist. Cannot be combined with accessPolicy."
+        },
+        "accessPolicy": {
+          "$ref": "#/$defs/AccessPolicy"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Arbitrary key-value data preserved by the registry. Not interpreted by the runtime."
+        }
+      }
+    },
+
+    "ModelConfig": {
+      "type": "object",
+      "required": ["provider", "model"],
+      "description": "Full LLM configuration. Alternative to the flat 'model' field — use one or the other.",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["anthropic", "openai", "google", "mistral", "openrouter"]
+        },
+        "model": {
+          "type": "string",
+          "description": "Provider-specific model identifier."
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "0–2. Defaults to runtime default."
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum output tokens per invocation."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Per-agent timeout in ms. Overrides team.timeout.agentMs."
+        }
+      }
+    },
+
+    "AccessPolicy": {
+      "type": "object",
+      "required": ["accessPolicyVersion", "defaultAction"],
+      "description": "Structured outbound request rules. Use in place of allowedHosts for deny rules, path matching, or reason strings.",
+      "additionalProperties": false,
+      "properties": {
+        "accessPolicyVersion": {
+          "type": "string",
+          "const": "1",
+          "description": "Always '1'."
+        },
+        "defaultAction": {
+          "type": "string",
+          "enum": ["allow", "deny"],
+          "description": "Applied when no rule matches. 'deny' is strongly recommended for agents with a known set of integrations."
+        },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AccessPolicyRule" }
+        }
+      }
+    },
+
+    "AccessPolicyRule": {
+      "type": "object",
+      "required": ["action"],
+      "description": "A single access policy rule. Rules are evaluated top-to-bottom; first match wins.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Hostname to match. Supports leading wildcard (*.domain.com). Omit to match all hosts."
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+          },
+          "description": "HTTP methods to match. Omit to match all methods."
+        },
+        "pathPrefix": {
+          "type": "string",
+          "description": "URL path prefix to match. Omit to match all paths."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["allow", "deny", "require_approval"],
+          "description": "'require_approval' is treated as 'deny' in v1 — reserved for v2. Definitions using it today are forward-compatible."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Shown in block messages and activity logs. Strongly recommended on 'deny' rules."
+        }
+      }
+    },
+
+    "HumanGate": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "afterStep",
+        "triggersStep",
+        "fields",
+        "trigger",
+        "onReject"
+      ],
+      "description": "A human review checkpoint between pipeline steps.",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique name within the pipeline. Used as a stable identifier in webhook payloads and audit logs."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "decision",
+            "content_generation",
+            "classification",
+            "action"
+          ],
+          "description": "The nature of the human decision."
+        },
+        "afterStep": {
+          "type": "string",
+          "description": "Key of the pipeline step whose output produces the records waiting for review."
+        },
+        "triggersStep": {
+          "type": "string",
+          "description": "Key of the pipeline step that runs once the gate trigger condition is met."
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Record field names to surface in the review UI."
+        },
+        "trigger": {
+          "type": "string",
+          "enum": ["any_approved", "all_resolved", "threshold", "scheduled"],
+          "description": "When to release the gate and run the next step."
+        },
+        "thresholdCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Required when trigger is 'threshold'. Number of approved records needed."
+        },
+        "onReject": {
+          "type": "string",
+          "enum": ["skip", "rerun", "escalate", "halt"],
+          "description": "What happens when a human rejects a record."
+        },
+        "recordActions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RecordAction" },
+          "description": "Per-record actions available in the review table."
+        },
+        "timeout": {
+          "$ref": "#/$defs/GateTimeout"
+        }
+      }
+    },
+
+    "RecordAction": {
+      "type": "object",
+      "required": ["label", "verb", "endpointTemplate"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Button label shown in the review UI."
+        },
+        "verb": {
+          "type": "string",
+          "enum": ["approve", "skip", "reject", "reset"],
+          "description": "Machine-readable action."
+        },
+        "endpointTemplate": {
+          "type": "string",
+          "description": "API endpoint to call. Use {fieldName} interpolation for record identifiers. {installId} is injected automatically."
+        },
+        "style": {
+          "type": "string",
+          "enum": ["primary", "secondary", "danger"],
+          "description": "'primary' (green), 'secondary' (neutral), 'danger' (red)."
+        }
+      }
+    },
+
+    "GateTimeout": {
+      "type": "object",
+      "required": ["after", "behaviour"],
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$",
+          "description": "Duration string. E.g. '72h', '30m', '1d'."
+        },
+        "behaviour": {
+          "type": "string",
+          "enum": ["escalate", "halt", "proceed"],
+          "description": "'escalate' — route to coordinator. 'halt' — stop and notify. 'proceed' — release and continue."
+        }
+      }
+    },
+
+    "PipelineStep": {
+      "type": "object",
+      "required": ["key", "agentKey"],
+      "description": "A single step in an ordered pipeline.",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique step identifier within the pipeline."
+        },
+        "agentKey": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Key of the agent that executes this step."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label shown in the operator dashboard."
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Keys of steps that must complete before this step runs."
+        }
+      }
+    }
+  }
+}
