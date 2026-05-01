@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://schema.openenvelope.org/team/v1.json",
   "title": "Envelope Team Definition",
-  "description": "Schema for an Envelope AI team definition. Reference as $schema in your .envelope.json file.",
+  "description": "Schema for an Envelope AI agent team definition. Reference as $schema in your .envelope.json file.",
   "type": "object",
   "required": [
     "$schema",
