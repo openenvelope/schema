@@ -45,11 +45,11 @@ const valid = validate(myTeamDefinition);
 if (!valid) console.log(validate.errors);
 ```
 
-**npm packages (coming soon):**
+**npm packages:**
 
 ```bash
-npm install @envelope/schema   # JSON Schema + TypeScript types
-npm install @envelope/cli      # validate, diff, publish from the terminal
+npm install @openenvelope/schema   # JSON Schema + TypeScript types (available now)
+npm install @openenvelope/cli      # validate, diff, publish from the terminal (coming soon)
 ```
 
 ## Following updates
