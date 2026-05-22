@@ -1,0 +1,172 @@
+{
+  "$schema": "https://schema.openenvelope.org/team/v1.json",
+  "name": "Research Team",
+  "slug": "research-team",
+  "version": "1.0.0",
+  "description": "A three-agent research pipeline that gathers sources, synthesises findings, and drafts a structured report — with a human review gate before the report is written.",
+  "category": "research",
+  "tags": ["research", "summarisation", "report-writing", "human-in-the-loop"],
+  "visibility": "public",
+  "pricing": {
+    "model": "per_k_tokens",
+    "amount": 0.008,
+    "currency": "usd"
+  },
+  "inputs": {
+    "research_question": {
+      "type": "string",
+      "description": "The question or topic to research.",
+      "required": true
+    },
+    "depth": {
+      "type": "string",
+      "enum": ["brief", "standard", "deep"],
+      "description": "How thorough the research should be. Brief = 3–5 sources, standard = 8–12, deep = 15+.",
+      "required": false,
+      "default": "standard"
+    },
+    "output_format": {
+      "type": "string",
+      "enum": ["markdown", "plain"],
+      "description": "Format for the final report.",
+      "required": false,
+      "default": "markdown"
+    }
+  },
+  "outputs": {
+    "report": {
+      "type": "string",
+      "description": "The completed research report in the requested format."
+    },
+    "sources": {
+      "type": "array",
+      "description": "List of URLs cited in the report."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "The analyst's confidence in the findings, based on source quality and consistency."
+    }
+  },
+  "requiredVariables": ["REPORT_RECIPIENT_NAME", "REPORT_RECIPIENT_EMAIL"],
+  "readme": "# Research Team\n\nA three-agent pipeline for structured research. Point it at a question, get back a sourced, synthesised report.\n\n## How it works\n\n1. **Research Coordinator** receives the question, breaks it into sub-topics, and dispatches search tasks to the Web Researcher.\n2. **Web Researcher** searches the web for each sub-topic, retrieves page content, and returns structured source summaries.\n3. **Human gate** — you review the gathered sources and approve or remove them before the report is written. Any source you remove is excluded from the final report.\n4. **Analyst** receives the approved sources and writes the final structured report.\n\n## Human gate\n\nAfter the Web Researcher finishes, the run pauses at a review tab in your Envelope dashboard. You'll see each source with its URL, title, and a one-paragraph summary. Approve the ones you want included, skip any that are off-topic or low-quality. The Analyst won't run until you've reviewed.\n\nThe gate times out after 24 hours. If no action is taken, the pipeline halts and notifies you.\n\n## Pricing\n\nCharged per 1,000 tokens across all three agents. A standard-depth research run on a focused topic is typically 30,000–60,000 tokens (\\$0.24–\\$0.48).\n",
+  "agents": [
+    {
+      "key": "research-coordinator",
+      "name": "Research Coordinator",
+      "title": "Lead Researcher",
+      "role": "manager",
+      "adapterType": "http",
+      "model": "anthropic:claude-opus-4-5",
+      "capabilities": ["planning", "delegation", "synthesis"],
+      "prompt": "You are the Research Coordinator. Your job is to decompose a research question into clear sub-topics and direct the Web Researcher to gather sources for each one.\n\nOn each run:\n1. Read the research question and depth setting.\n2. Break the question into 3–6 sub-topics (fewer for brief, more for deep).\n3. For each sub-topic, give the Web Researcher a specific search instruction — not just a keyword, but a clear statement of what you're looking for and why.\n4. Once sources are returned, record them in the research-log workspace document.\n\nDo not write the final report yourself. Your job ends when the sources are gathered and logged.",
+      "allowedHosts": []
+    },
+    {
+      "key": "web-researcher",
+      "name": "Web Researcher",
+      "title": "Research Agent",
+      "role": "specialist",
+      "adapterType": "http",
+      "model": "anthropic:claude-sonnet-4-5",
+      "reportsToKey": "research-coordinator",
+      "capabilities": ["web-search", "content-extraction", "summarisation"],
+      "prompt": "You are the Web Researcher. For each sub-topic you receive from the Research Coordinator:\n1. Search the web using your search tool.\n2. Retrieve the full content of the 2–4 most relevant pages.\n3. For each page, return: the URL, the page title, a 2–3 sentence summary of what it says about the sub-topic, and a quality rating (high / medium / low) based on source credibility and recency.\n\nDo not editorialize. Return what the sources say, not your interpretation. Flag any conflicting information across sources explicitly.",
+      "accessPolicy": {
+        "accessPolicyVersion": "1",
+        "defaultAction": "deny",
+        "rules": [
+          {
+            "host": "*.google.com",
+            "methods": ["GET"],
+            "action": "allow",
+            "reason": "Web search."
+          },
+          {
+            "host": "*.bing.com",
+            "methods": ["GET"],
+            "action": "allow",
+            "reason": "Web search fallback."
+          },
+          {
+            "host": "*",
+            "methods": ["GET"],
+            "pathPrefix": "/",
+            "action": "allow",
+            "reason": "Retrieve page content from any public URL found during research."
+          },
+          {
+            "host": "*",
+            "methods": ["POST", "PUT", "PATCH", "DELETE"],
+            "action": "deny",
+            "reason": "Research agent is read-only — no write operations to any host."
+          }
+        ]
+      }
+    },
+    {
+      "key": "analyst",
+      "name": "Analyst",
+      "title": "Research Analyst",
+      "role": "analyst",
+      "adapterType": "http",
+      "model": "anthropic:claude-opus-4-5",
+      "reportsToKey": "research-coordinator",
+      "capabilities": ["synthesis", "report-writing", "citation"],
+      "prompt": "You are the Research Analyst. You receive a set of approved sources from the human review gate and write the final research report.\n\nReport structure:\n1. **Summary** — 2–3 sentence answer to the research question.\n2. **Key findings** — bullet points, one per major insight, each citing at least one source.\n3. **Detail** — one section per sub-topic, with prose synthesis and inline citations.\n4. **Sources** — numbered list of all cited URLs.\n5. **Confidence** — your assessment (low / medium / high) with a one-sentence explanation.\n\nOnly cite sources that were approved by the human reviewer. Do not introduce information that isn't in the provided sources. If the sources are insufficient to answer the question, say so clearly in the Summary.\n\nOutput in {{OUTPUT_FORMAT}} format. Address the report to {{REPORT_RECIPIENT_NAME}}.",
+      "allowedHosts": []
+    }
+  ],
+  "gates": [
+    {
+      "name": "source-review",
+      "type": "decision",
+      "afterStep": "web-researcher",
+      "triggersStep": "analyst",
+      "fields": ["url", "title", "summary", "quality"],
+      "trigger": "all_resolved",
+      "onReject": "skip",
+      "recordActions": [
+        {
+          "label": "Include",
+          "verb": "approve",
+          "endpointTemplate": "/installs/{installId}/gates/source-review/{id}/approve",
+          "style": "primary"
+        },
+        {
+          "label": "Skip",
+          "verb": "skip",
+          "endpointTemplate": "/installs/{installId}/gates/source-review/{id}/skip",
+          "style": "secondary"
+        }
+      ],
+      "timeout": {
+        "after": "24h",
+        "behaviour": "halt"
+      }
+    }
+  ],
+  "workspace": [
+    {
+      "name": "research-log",
+      "columns": [
+        { "name": "sub-topic", "owner": "agent", "id": true },
+        { "name": "url", "owner": "agent" },
+        { "name": "title", "owner": "agent" },
+        { "name": "summary", "owner": "agent" },
+        { "name": "quality", "owner": "agent" },
+        { "name": "status", "owner": "agent" },
+        { "name": "notes", "owner": "human" }
+      ],
+      "statusValues": ["gathered", "approved", "skipped", "cited"],
+      "triggers": []
+    }
+  ],
+  "timeout": {
+    "runMs": 300000,
+    "agentMs": 120000
+  },
+  "metadata": {
+    "generatedBy": "Envelope · openenvelope.org"
+  }
+}
