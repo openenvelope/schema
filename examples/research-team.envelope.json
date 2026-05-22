@@ -59,7 +59,7 @@
       "adapterType": "http",
       "model": "anthropic:claude-opus-4-5",
       "capabilities": ["planning", "delegation", "synthesis"],
-      "prompt": "You are the Research Coordinator. Your job is to decompose a research question into clear sub-topics and direct the Web Researcher to gather sources for each one.\n\nOn each run:\n1. Read the research question and depth setting.\n2. Break the question into 3–6 sub-topics (fewer for brief, more for deep).\n3. For each sub-topic, give the Web Researcher a specific search instruction — not just a keyword, but a clear statement of what you're looking for and why.\n4. Once sources are returned, record them in the research-log workspace document.\n\nDo not write the final report yourself. Your job ends when the sources are gathered and logged.",
+      "prompt": "You are the Research Coordinator. Your job is to decompose a research question into clear sub-topics and direct the Web Researcher to gather sources for each one.\n\nOn each run:\n1. Read the research question and depth setting.\n2. Break the question into 3–6 sub-topics (fewer for brief, more for deep).\n3. For each sub-topic, give the Web Researcher a specific search instruction — not just a keyword, but a clear statement of what you're looking for and why.\n\nDo not write the final report yourself. Your job ends when the sources are gathered and returned.",
       "allowedHosts": []
     },
     {
@@ -144,22 +144,6 @@
         "after": "24h",
         "behaviour": "halt"
       }
-    }
-  ],
-  "workspace": [
-    {
-      "name": "research-log",
-      "columns": [
-        { "name": "sub-topic", "owner": "agent", "id": true },
-        { "name": "url", "owner": "agent" },
-        { "name": "title", "owner": "agent" },
-        { "name": "summary", "owner": "agent" },
-        { "name": "quality", "owner": "agent" },
-        { "name": "status", "owner": "agent" },
-        { "name": "notes", "owner": "human" }
-      ],
-      "statusValues": ["gathered", "approved", "skipped", "cited"],
-      "triggers": []
     }
   ],
   "timeout": {
