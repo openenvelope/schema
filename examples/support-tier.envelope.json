@@ -1,0 +1,147 @@
+{
+  "$schema": "https://schema.openenvelope.org/team/v1.json",
+  "name": "Support Tier",
+  "slug": "support-tier",
+  "version": "1.0.0",
+  "description": "A three-tier support team that triages incoming tickets, handles billing questions, and resolves technical issues — escalating to a human only when needed.",
+  "category": "customer-support",
+  "tags": ["zendesk", "slack", "triage", "escalation"],
+  "visibility": "public",
+  "pricing": {
+    "model": "per_run",
+    "amount": 0.05,
+    "currency": "usd"
+  },
+  "inputs": {
+    "ticket_text": {
+      "type": "string",
+      "description": "The raw ticket content to be triaged.",
+      "required": true
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer's name, if known.",
+      "required": false
+    },
+    "priority_override": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "urgent"],
+      "description": "Optional manual priority. If omitted, the support lead determines priority from ticket content.",
+      "required": false
+    }
+  },
+  "outputs": {
+    "resolution": {
+      "type": "string",
+      "description": "The final response drafted for the customer."
+    },
+    "assigned_agent": {
+      "type": "string",
+      "description": "The key of the agent that handled the ticket."
+    },
+    "escalated": {
+      "type": "boolean",
+      "description": "Whether the ticket was escalated to a human."
+    },
+    "zendesk_ticket_id": {
+      "type": "string",
+      "description": "The Zendesk ticket ID that was updated."
+    }
+  },
+  "requiredSecrets": ["ZENDESK_API_KEY", "SLACK_BOT_TOKEN"],
+  "requiredVariables": ["SUPPORT_EMAIL", "COMPANY_NAME", "ZENDESK_SUBDOMAIN"],
+  "readme": "# Support Tier\n\nA three-agent support team that handles inbound customer tickets from triage through to resolution.\n\n## How it works\n\n1. **Support Lead** receives the raw ticket, classifies it (billing vs technical vs general), sets priority, and delegates to the appropriate specialist.\n2. **Billing Specialist** handles subscription, payment, and account questions. Has read access to Zendesk and write access to post replies.\n3. **Technical Specialist** handles product bugs, integrations, and how-to questions. Can search the knowledge base and draft step-by-step responses.\n\nIf confidence is low or the issue is out of scope for both specialists, the Support Lead escalates to a human via Slack and closes the loop in Zendesk.\n\n## Required credentials\n\n| Secret | Where to find it |\n|---|---|\n| `ZENDESK_API_KEY` | Zendesk Admin → Apps & Integrations → API |\n| `SLACK_BOT_TOKEN` | Slack App settings → OAuth tokens |\n\n## Required variables\n\n| Variable | Example |\n|---|---|\n| `SUPPORT_EMAIL` | support@yourcompany.com |\n| `COMPANY_NAME` | Acme Corp |\n| `ZENDESK_SUBDOMAIN` | acme (for acme.zendesk.com) |\n",
+  "agents": [
+    {
+      "key": "support-lead",
+      "name": "Support Lead",
+      "title": "Head of Support",
+      "role": "manager",
+      "adapterType": "http",
+      "model": "anthropic:claude-opus-4-5",
+      "capabilities": ["triage", "escalation", "delegation"],
+      "prompt": "You are the Support Lead for {{COMPANY_NAME}}. Your job is to triage incoming support tickets and delegate to the right specialist.\n\nOn each ticket:\n1. Read the ticket carefully and classify it as: billing, technical, or general.\n2. Assess urgency: low, normal, high, or urgent. Use the priority_override input if provided.\n3. Delegate to the billing-specialist or technical-specialist accordingly.\n4. If the issue is ambiguous or out of scope, escalate to a human via Slack and post a holding reply in Zendesk.\n\nAlways be concise in your delegation instructions. Specialists should not need to re-read the original ticket to act.\n\nZendesk subdomain: {{ZENDESK_SUBDOMAIN}}\nSupport email: {{SUPPORT_EMAIL}}",
+      "accessPolicy": {
+        "accessPolicyVersion": "1",
+        "defaultAction": "deny",
+        "rules": [
+          {
+            "host": "{{ZENDESK_SUBDOMAIN}}.zendesk.com",
+            "methods": ["GET"],
+            "action": "allow",
+            "reason": "Read ticket details and history."
+          },
+          {
+            "host": "hooks.slack.com",
+            "methods": ["POST"],
+            "action": "allow",
+            "reason": "Post escalation alerts to the support Slack channel."
+          }
+        ]
+      }
+    },
+    {
+      "key": "billing-specialist",
+      "name": "Billing Specialist",
+      "title": "Billing Support Agent",
+      "role": "specialist",
+      "adapterType": "http",
+      "model": "anthropic:claude-sonnet-4-5",
+      "reportsToKey": "support-lead",
+      "capabilities": ["billing", "subscriptions", "refunds"],
+      "prompt": "You are the Billing Specialist for {{COMPANY_NAME}}. You handle questions about subscriptions, invoices, payments, and refunds.\n\nFor each ticket delegated to you:\n1. Look up the customer's account in Zendesk.\n2. Draft a clear, accurate response to their billing question.\n3. If a refund or plan change is needed, note it explicitly in your response — do not action it yourself.\n4. Post the drafted reply to the Zendesk ticket and mark it as pending.\n\nKeep responses concise and professional. Do not speculate about pricing not covered in the ticket context.",
+      "accessPolicy": {
+        "accessPolicyVersion": "1",
+        "defaultAction": "deny",
+        "rules": [
+          {
+            "host": "{{ZENDESK_SUBDOMAIN}}.zendesk.com",
+            "methods": ["GET", "POST", "PUT"],
+            "pathPrefix": "/api/v2/tickets",
+            "action": "allow",
+            "reason": "Read tickets and post replies."
+          },
+          {
+            "host": "{{ZENDESK_SUBDOMAIN}}.zendesk.com",
+            "methods": ["DELETE"],
+            "action": "deny",
+            "reason": "Ticket deletion is irreversible — disabled for all agents."
+          }
+        ]
+      }
+    },
+    {
+      "key": "technical-specialist",
+      "name": "Technical Specialist",
+      "title": "Technical Support Agent",
+      "role": "specialist",
+      "adapterType": "http",
+      "model": "anthropic:claude-sonnet-4-5",
+      "reportsToKey": "support-lead",
+      "capabilities": ["troubleshooting", "integrations", "documentation"],
+      "prompt": "You are the Technical Specialist for {{COMPANY_NAME}}. You handle questions about product bugs, integrations, configuration, and how-to guides.\n\nFor each ticket delegated to you:\n1. Understand the issue from the ticket and any prior thread context.\n2. Draft a step-by-step response that directly addresses the problem.\n3. If you cannot reproduce or confirm the issue from context alone, ask one targeted clarifying question rather than guessing.\n4. Post the response to the Zendesk ticket.\n\nBe specific. Generic \"have you tried turning it off and on again\" responses are not acceptable.",
+      "accessPolicy": {
+        "accessPolicyVersion": "1",
+        "defaultAction": "deny",
+        "rules": [
+          {
+            "host": "{{ZENDESK_SUBDOMAIN}}.zendesk.com",
+            "methods": ["GET", "POST", "PUT"],
+            "pathPrefix": "/api/v2/tickets",
+            "action": "allow",
+            "reason": "Read tickets and post replies."
+          },
+          {
+            "host": "{{ZENDESK_SUBDOMAIN}}.zendesk.com",
+            "methods": ["DELETE"],
+            "action": "deny",
+            "reason": "Ticket deletion is irreversible — disabled for all agents."
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "generatedBy": "Envelope · openenvelope.org"
+  }
+}
