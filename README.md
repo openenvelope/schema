@@ -1,6 +1,6 @@
 # Envelope Schema
 
-The open JSON Schema for Envelope AI team definitions.
+The open JSON Schema for Envelope multi-agent team definitions.
 
 ## What this is
 
