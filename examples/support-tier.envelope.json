@@ -10,7 +10,7 @@
   "pricing": {
     "model": "per_run",
     "amount": 0.05,
-    "currency": "usd"
+    "currency": "USD"
   },
   "inputs": {
     "ticket_text": {

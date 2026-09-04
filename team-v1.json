@@ -224,7 +224,7 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$",
-          "default": "usd",
+          "default": "USD",
           "description": "ISO 4217 currency code. Defaults to 'usd'."
         },
         "interval": {
