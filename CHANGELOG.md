@@ -4,6 +4,15 @@ All schema changes are documented here. Tags: `added`, `changed`, `deprecated`, 
 
 ---
 
+## Unreleased
+
+**Fixed:**
+
+- Corrected the `pricing.currency` default from `usd` to `USD` so it matches the existing ISO 4217 uppercase constraint.
+- Updated both official examples to validate against the canonical schema.
+
+---
+
 ## v1.1.0 — 2026-05-16
 
 Proactive agents release. Adds event and condition trigger types, attribution metadata, and forward-compatibility enum value for continuous triggers.
