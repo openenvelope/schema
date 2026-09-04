@@ -10,7 +10,7 @@
   "pricing": {
     "model": "per_k_tokens",
     "amount": 0.008,
-    "currency": "usd"
+    "currency": "USD"
   },
   "inputs": {
     "research_question": {
